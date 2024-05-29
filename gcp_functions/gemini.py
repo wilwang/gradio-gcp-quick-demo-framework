@@ -2,7 +2,7 @@ import vertexai.preview.generative_models as generative_models
 from vertexai.preview.generative_models import GenerativeModel, GenerationConfig
 from .config import GeminiConfig
 
-def gemini_response(message, history, ground_text):
+def gemini_docqa_response(message, history, ground_text):
     model = GeminiConfig.model()
     temp = GeminiConfig.temperature()
     p = GeminiConfig.top_p()
