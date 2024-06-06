@@ -1,3 +1,7 @@
 .ipynb_checkpoints
 gcp_functions/.ipynb_checkpoints
 gcp_functions/__pycache__
+
+venv
+creds
+.env
