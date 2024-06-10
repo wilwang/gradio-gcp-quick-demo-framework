@@ -83,17 +83,31 @@ class GeminiConfig:
     load_dotenv()
 
     def model():
-        value = os.environ.get("model", "gemini-1.5-pro-preview-0409")
+        #gemini-1.5-flash-001
+        #gemini-1.5-pro-preview-0409
+        value = os.environ.get("model", "gemini-1.5-flash-001") 
         return value
     
     def temperature():
-        value = os.environ.get("temperature", 1)
+        value = float(os.environ.get("temperature", "1"))
         return value
     
     def top_k():
-        value = os.environ.get("top_k", 5)
+        value = int(os.environ.get("top_k", "5"))
         return value
     
     def top_p():
-        value = os.environ.get("top_p", 1)
+        value = float(os.environ.get("top_p", "1"))
         return value    
+
+
+class DiscoveryEngineConfig:
+    load_dotenv()
+
+    def engine_id():
+        value = os.environ.get("DISCOVERY_ENGINE_ID", "")
+        return value
+
+    def location():
+        value = os.environ.get("DISCOVERY_ENGINE_LOCATION", "")
+        return value

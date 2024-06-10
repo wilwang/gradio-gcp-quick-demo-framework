@@ -5,3 +5,4 @@ gcp_functions/__pycache__
 venv
 creds
 .env
+test.py
