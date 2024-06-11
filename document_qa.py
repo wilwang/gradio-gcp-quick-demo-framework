@@ -215,7 +215,7 @@ context
 def qa_component(full_text_component: gr.components.textbox.Textbox,
                 active_tab_state: gr.State):
     with gr.Row():
-        chatbot = gr.Chatbot(height=600)
+        chatbot = gr.Chatbot(height=700)
         
     with gr.Row():
         msg = gr.Textbox()

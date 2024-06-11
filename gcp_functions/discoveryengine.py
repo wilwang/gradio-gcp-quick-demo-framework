@@ -73,16 +73,23 @@ def search(
 
     response = client.search(request)
     summary = response.summary.summary_text
-    for result in response.results:
-        title = result.document.derived_struct_data["title"]
-        gslink = result.document.derived_struct_data["link"]
-        link = gslink.replace("gs://", "https://storage.cloud.google.com/")
-        link = link.replace(" ", "%20")
-        ans = result.document.derived_struct_data["extractive_answers"][0]
-        pageNum = ans["pageNumber"]
-        content = ans["content"]
 
-        summary = f'{summary}\n\n[{title}]({link})\nPage: {pageNum}\n{content}'        
+    max_results = 2
+    count = 0
+    for result in response.results:
+        if count >= max_results:
+            continue
+        else:
+            title = result.document.derived_struct_data["title"]
+            gslink = result.document.derived_struct_data["link"]
+            link = gslink.replace("gs://", "https://storage.cloud.google.com/")
+            link = link.replace(" ", "%20")
+            ans = result.document.derived_struct_data["extractive_answers"][0]
+            pageNum = ans["pageNumber"]
+            content = ans["content"]
+
+            summary = f'{summary}\n\n[{title}]({link})\nPage: {pageNum}\n{content}'        
+            count = count + 1
     #print (response)
 
     return summary, response
