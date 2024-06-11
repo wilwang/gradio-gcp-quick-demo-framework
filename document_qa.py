@@ -185,23 +185,23 @@ def search_component(full_text: gr.components.textbox.Textbox,
                     state: gr.State):
     with gr.Tab("Enterprise KB") as tab:
         with gr.Row():
-            datasource_url = gr.Textbox(lines=1,
-                                        label="Data Source URL", 
+            search_engine = gr.Textbox(lines=1,
+                                        label="Search Engine Id", 
                                         value=DiscoveryEngineConfig.engine_id())
 
-        def handle_search(engine_id: str):
+        def handle_search_engine_change(engine_id: str):
             print (engine_id)
             return engine_id
 
-        datasource_url.change(handle_search, [datasource_url], [full_text])
+        search_engine.change(handle_search_engine_change, [search_engine], [full_text])
 
-    def set_active_tab(datasource_url: gr.Textbox,
+    def set_active_tab(search_engine: gr.Textbox,
                         state: gr.State):
         state["active_tab"] = "kb"
-        print(datasource_url)
-        return datasource_url, state
+        print(search_engine)
+        return search_engine, state
 
-    tab.select(set_active_tab, [datasource_url, state], [full_text, state])            
+    tab.select(set_active_tab, [search_engine, state], [full_text, state])            
 
 
 '''####################################################################
