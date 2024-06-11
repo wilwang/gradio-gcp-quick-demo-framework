@@ -26,7 +26,7 @@ and then parse out the Summary and OCR Text from the json results
 NOTE: While the processing function can use any DocAI parser, the 
 code assumes the json result to be from the Summarizer parser
 ####################################################################'''
-def handle_summary_upload(file_url: str):
+def handle_summary_upload(file_url: str, state: gr.State):
     upload_bucket = SummaryParserConfig.upload_bucket()
     
     # upload the file from the local dir to the cloud bucket
@@ -54,17 +54,19 @@ def handle_summary_upload(file_url: str):
     # assumes result json is from a DocAI Workbench Summarizer parser
     output_gcs_destination = metadata.individual_process_statuses[0].output_gcs_destination
     json_uri, summary, text = StorageHelper.extract_from_summary_output(output_gcs_destination)
+
+    # set the current full ocr text in session state; we use this for 
+    # QnA prompting to provide context for the prompts
+    state["ocr_text"] = text
     
-    # returns the result location, the summary portion, and the OCR text
-    return f, summary, text
+    # returns the result location, the summary portion, and the session state
+    return gcs_input_uri, summary, state
     
 '''####################################################################
 Document Summarizer UI component
 
 ####################################################################'''
-def summary_component(full_text: gr.components.textbox.Textbox, 
-                      handle_func: Callable,
-                      state: gr.State):
+def summary_component(handle_func: Callable, state: gr.State):
     with gr.Tab("Summarize") as tab:
         with gr.Row():
             file = gr.Textbox(lines=1, label="Upload File")
@@ -80,8 +82,8 @@ def summary_component(full_text: gr.components.textbox.Textbox,
             
         upload_btn.upload(
             handle_func,
-            [upload_btn],
-            [file, summary, full_text])
+            [upload_btn, state],
+            [file, summary, state])
 
 
     def set_active_tab(state: gr.State):
@@ -101,7 +103,7 @@ and then parse out the Entities and OCR Text from the json results
 NOTE: While the processing function can use any DocAI parser, the 
 code assumes the json result to be from the Contract parser
 ####################################################################'''
-def handle_contract_upload(file_url: str):
+def handle_contract_upload(file_url: str, state: gr.State):
     load_dotenv()
 
     upload_bucket = ContractParserConfig.upload_bucket()
@@ -138,17 +140,17 @@ def handle_contract_upload(file_url: str):
     json_uri, entities, text = StorageHelper.extract_from_contract_output(output_gcs_destination, credentials)
     
     df_entities = pandas.DataFrame(entities)
+
+    state["ocr_text"] = text
     
     # returns the result location, the extracted entities, and the OCR text
-    return f, df_entities, text
+    return gcs_input_uri, df_entities, state
 
 '''####################################################################
 Document Contract Parser UI component
 
 ####################################################################'''
-def contract_component(full_text: gr.components.textbox.Textbox, 
-                      handle_func: Callable,
-                      state: gr.State):
+def contract_component(handle_func: Callable, state: gr.State):
     with gr.Tab("Contracts") as tab:
         with gr.Row():
             file = gr.Textbox(lines=1, label="Upload Contract")
@@ -167,8 +169,8 @@ def contract_component(full_text: gr.components.textbox.Textbox,
         
         upload_btn.upload(
             handle_func,
-            [upload_btn],
-            [file, entities, full_text])
+            [upload_btn, state],
+            [file, entities, state])
 
 
     def set_active_tab(state: gr.State):
@@ -181,27 +183,29 @@ def contract_component(full_text: gr.components.textbox.Textbox,
 Enterprise Search UI component
 
 ####################################################################'''
-def search_component(full_text: gr.components.textbox.Textbox, 
-                    state: gr.State):
+def search_component(state: gr.State):
+    engine_id = DiscoveryEngineConfig.engine_id()
+
     with gr.Tab("Enterprise KB") as tab:
         with gr.Row():
             search_engine = gr.Textbox(lines=1,
                                         label="Search Engine Id", 
-                                        value=DiscoveryEngineConfig.engine_id())
+                                        value=engine_id)
 
-        def handle_search_engine_change(engine_id: str):
+        def handle_search_engine_change(engine_id: str, state: gr.State):
             print (engine_id)
-            return engine_id
+            state["engine_id"] = engine_id
+            return state
 
-        search_engine.change(handle_search_engine_change, [search_engine], [full_text])
+        search_engine.change(handle_search_engine_change, [search_engine, state], [state])
 
-    def set_active_tab(search_engine: gr.Textbox,
-                        state: gr.State):
+    def set_active_tab(engine_id: str, state: gr.State):
         state["active_tab"] = "kb"
-        print(search_engine)
-        return search_engine, state
+        state["engine_id"] = engine_id
+        print(engine_id)
+        return state
 
-    tab.select(set_active_tab, [search_engine, state], [full_text, state])            
+    tab.select(set_active_tab, [search_engine, state], [state])            
 
 
 '''####################################################################
@@ -211,30 +215,32 @@ NOTE: the 'full_text' component should be HIDDEN in the main UI and
 is used as a way to cache and keep the document available for prompt
 context
 ####################################################################'''   
-def qa_component(full_text_component: gr.components.textbox.Textbox,
-                state: gr.State):
+def qa_component(state: gr.State):
     with gr.Row():
         chatbot = gr.Chatbot(height=700)
         
     with gr.Row():
         msg = gr.Textbox()
 
-    def respond(message, history, full_text, state):
+    def respond(message, history, state):
         resp = ""
         active_tab = state["active_tab"]
+        
         if (active_tab == "kb"):
             project_id = ProjectConfig.get_project_id()
+            engine_id = state["engine_id"]
             context = """You are a search engine answering questions for a user. 
             Return pertinent snippets from the source documents where you answer from."""
-            resp, raw = search(project_id, full_text, context, message)
+            resp, raw = search(project_id, engine_id, context, message)
         else:
-            resp = gemini_docqa_response(message, history, full_text)
+            ocr_text = state["ocr_text"]
+            resp = gemini_docqa_response(message, history, ocr_text)
             
         history.append((message, resp))
 
         return "", history
 
-    msg.submit(respond, [msg, chatbot, full_text_component, state], [msg, chatbot])    
+    msg.submit(respond, [msg, chatbot, state], [msg, chatbot])    
 
 '''####################################################################
 Main UI
@@ -254,29 +260,25 @@ def main():
                 <img src="file/images/GoogleCloud_logo.png" />
             </div>
             """)
-        with gr.Row():
-            # using this as a way to cache the full text from the document to use
-            # for context in the prompt for the QA chatbot
-            # TODO: change this to use gr.State()
-            full_text = gr.Textbox(lines=20, label="Full Text", visible=True)
+
         with gr.Row():
             with gr.Column():
                 # the summary UI
-                summary_component(full_text, handle_summary_upload, state)
+                summary_component(handle_summary_upload, state)
                 
                 # the contract UI
-                contract_component(full_text, handle_contract_upload, state)
+                contract_component(handle_contract_upload, state)
 
                 # the KB UI
-                search_component(full_text, state)
+                search_component(state)
             with gr.Column():
                 # the QA chatbot
-                qa_component(full_text, state)
+                qa_component(state)
 
 
         
-        # Test code to verify that "set active tab" is working
-
+        # NOTE: Uncomment if you need to keep an eye on the session state
+        '''
         def handle(state: gr.State):
             return f"""
             active_tab: {state["active_tab"]}
@@ -286,7 +288,7 @@ def main():
         msg = gr.Textbox()
         btn = gr.Button("Click me!")
         btn.click(handle, [state], [msg])
-        
+        '''
 
     demo.launch(share=False, debug=True, allowed_paths=["images"])
 
