@@ -64,7 +64,7 @@ Document Summarizer UI component
 ####################################################################'''
 def summary_component(full_text: gr.components.textbox.Textbox, 
                       handle_func: Callable,
-                      active_tab_state: gr.State):
+                      state: gr.State):
     with gr.Tab("Summarize") as tab:
         with gr.Row():
             file = gr.Textbox(lines=1, label="Upload File")
@@ -84,11 +84,11 @@ def summary_component(full_text: gr.components.textbox.Textbox,
             [file, summary, full_text])
 
 
-    def set_active_tab(active_tab_state: gr.State):
-        active_tab_state = "summary"
-        return active_tab_state
+    def set_active_tab(state: gr.State):
+        state["active_tab"] = "summary"
+        return state
 
-    tab.select(set_active_tab, [active_tab_state], [active_tab_state])
+    tab.select(set_active_tab, [state], [state])
 
 
 '''####################################################################
@@ -148,7 +148,7 @@ Document Contract Parser UI component
 ####################################################################'''
 def contract_component(full_text: gr.components.textbox.Textbox, 
                       handle_func: Callable,
-                      active_tab_state: gr.State):
+                      state: gr.State):
     with gr.Tab("Contracts") as tab:
         with gr.Row():
             file = gr.Textbox(lines=1, label="Upload Contract")
@@ -171,38 +171,37 @@ def contract_component(full_text: gr.components.textbox.Textbox,
             [file, entities, full_text])
 
 
-    def set_active_tab(active_tab_state: gr.State):
-        active_tab_state = "contract"
-        return active_tab_state
+    def set_active_tab(state: gr.State):
+        state["active_tab"] = "contract"
+        return state
 
-    tab.select(set_active_tab, [active_tab_state], [active_tab_state])
+    tab.select(set_active_tab, [state], [state])
 
 '''####################################################################
 Enterprise Search UI component
 
 ####################################################################'''
-def handle_search(engine_id: str):
-    print (engine_id)
-    return engine_id
-
 def search_component(full_text: gr.components.textbox.Textbox, 
-                    handle_func: Callable,
-                    active_tab_state: gr.State):
+                    state: gr.State):
     with gr.Tab("Enterprise KB") as tab:
         with gr.Row():
             datasource_url = gr.Textbox(lines=1,
                                         label="Data Source URL", 
                                         value=DiscoveryEngineConfig.engine_id())
-        
+
+        def handle_search(engine_id: str):
+            print (engine_id)
+            return engine_id
+
         datasource_url.change(handle_search, [datasource_url], [full_text])
 
     def set_active_tab(datasource_url: gr.Textbox,
-                        active_tab_state: gr.State):
-        active_tab_state = "kb"
+                        state: gr.State):
+        state["active_tab"] = "kb"
         print(datasource_url)
-        return datasource_url, active_tab_state
+        return datasource_url, state
 
-    tab.select(set_active_tab, [datasource_url, active_tab_state], [full_text, active_tab_state])            
+    tab.select(set_active_tab, [datasource_url, state], [full_text, state])            
 
 
 '''####################################################################
@@ -213,16 +212,17 @@ is used as a way to cache and keep the document available for prompt
 context
 ####################################################################'''   
 def qa_component(full_text_component: gr.components.textbox.Textbox,
-                active_tab_state: gr.State):
+                state: gr.State):
     with gr.Row():
         chatbot = gr.Chatbot(height=700)
         
     with gr.Row():
         msg = gr.Textbox()
 
-    def respond(message, history, full_text, active_tab_state):
+    def respond(message, history, full_text, state):
         resp = ""
-        if (active_tab_state == "kb"):
+        active_tab = state["active_tab"]
+        if (active_tab == "kb"):
             project_id = ProjectConfig.get_project_id()
             context = """You are a search engine answering questions for a user. 
             Return pertinent snippets from the source documents where you answer from."""
@@ -234,7 +234,7 @@ def qa_component(full_text_component: gr.components.textbox.Textbox,
 
         return "", history
 
-    msg.submit(respond, [msg, chatbot, full_text_component, active_tab_state], [msg, chatbot])    
+    msg.submit(respond, [msg, chatbot, full_text_component, state], [msg, chatbot])    
 
 '''####################################################################
 Main UI
@@ -242,7 +242,11 @@ Main UI
 ####################################################################'''
 def main():   
     with gr.Blocks() as demo:
-        active_tab_state = gr.State("summary")
+        state = gr.State({
+            "active_tab": "summary",
+            "ocr_text": "none",
+            "engine_id": "none"            
+            })
 
         with gr.Row():
             gr.HTML("""
@@ -254,31 +258,35 @@ def main():
             # using this as a way to cache the full text from the document to use
             # for context in the prompt for the QA chatbot
             # TODO: change this to use gr.State()
-            full_text = gr.Textbox(lines=20, label="Full Text", visible=False)
+            full_text = gr.Textbox(lines=20, label="Full Text", visible=True)
         with gr.Row():
             with gr.Column():
                 # the summary UI
-                summary_component(full_text, handle_summary_upload, active_tab_state)
+                summary_component(full_text, handle_summary_upload, state)
                 
                 # the contract UI
-                contract_component(full_text, handle_contract_upload, active_tab_state)
+                contract_component(full_text, handle_contract_upload, state)
 
                 # the KB UI
-                search_component(full_text, handle_search, active_tab_state)
+                search_component(full_text, state)
             with gr.Column():
                 # the QA chatbot
-                qa_component(full_text, active_tab_state)
+                qa_component(full_text, state)
 
 
-        '''
+        
         # Test code to verify that "set active tab" is working
 
-        def handle(active_tab_state):
-            return active_tab_state
+        def handle(state: gr.State):
+            return f"""
+            active_tab: {state["active_tab"]}
+            ocr_text: {state["ocr_text"]}
+            engine_id: {state["engine_id"]}
+            """
         msg = gr.Textbox()
         btn = gr.Button("Click me!")
-        btn.click(handle, [active_tab_state], [msg])
-        '''
+        btn.click(handle, [state], [msg])
+        
 
     demo.launch(share=False, debug=True, allowed_paths=["images"])
 
