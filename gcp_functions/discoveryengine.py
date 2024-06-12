@@ -2,6 +2,7 @@ from typing import List
 from google.api_core.client_options import ClientOptions
 from google.cloud import discoveryengine_v1 as discoveryengine
 from .config import DiscoveryEngineConfig
+from urllib.parse import quote
 
 '''
 Search function against Vertex Search
@@ -82,8 +83,8 @@ def search(
         else:
             title = result.document.derived_struct_data["title"]
             gslink = result.document.derived_struct_data["link"]
-            link = gslink.replace("gs://", "https://storage.cloud.google.com/")
-            link = link.replace(" ", "%20")
+            file_uri = gslink.replace("gs://", "")
+            link = f'https://storage.cloud.google.com/{quote(file_uri)}'
             ans = result.document.derived_struct_data["extractive_answers"][0]
             pageNum = ans["pageNumber"]
             content = ans["content"]

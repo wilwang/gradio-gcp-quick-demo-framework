@@ -5,6 +5,10 @@ from dotenv import load_dotenv
 class ProjectConfig:
     load_dotenv()
 
+    def get_logo():
+        value = os.environ.get("DEMO_LOGO", "GoogleCloud_logo.png")
+        return value
+
     def get_project_id():
         value = os.environ.get("PROJECT_ID")
 
