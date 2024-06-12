@@ -5,13 +5,22 @@ from google.cloud import storage
 from typing import Optional
 from google.oauth2.service_account import Credentials
 
-######################################################################
-# Upload a local file from gr.File() to a designated Cloud Storage bucket
-######################################################################
 def file_upload(file_url: str, 
                 upload_bucket: str,
                 credentials: Optional[Credentials] = None):
-    
+    """
+    Helper function to upload a local file from gr.File() 
+    to a designated Cloud Storage bucket
+
+    Args:
+        file_url: the local file path of he file to upload
+        upload_bucket: bucket name to upload file to
+        credentials: Optional. set to run as a specific user
+
+    Returns:
+        file_url: local file path of the file to upload
+        gcs_upload_uri: the cloud storage URI of the file 
+    """
     print(f'Uploading {file_url} to {upload_bucket}')
 
     if (credentials != None):
@@ -30,13 +39,21 @@ def file_upload(file_url: str,
     
     return file_url, gcs_upload_uri
 
-######################################################################
-# Extract the blob uri, summary, and full extracted text of the 
-# summarized result from docAI workbench summarizer
-######################################################################
 def extract_from_summary_output(gcs_url: str, 
                                 credentials: Optional[Credentials] = None):
+    """
+    Extract the blob uri, summary, and full extracted text of the 
+    summarized result from docAI workbench summarizer
 
+    Args: 
+        gcs_url: the url of the output json of a document parser
+        credentials: Optional. user to run as to get file from storage
+
+    Returns:
+        json_uri: URI of cloud storage directory of output
+        summary: concatenated summary of the processor results
+        full_text: the full OCR text from the parser
+    """
     print(f'Extract docai summary parser output from {gcs_url}')
     
     if (credentials != None):
@@ -52,6 +69,7 @@ def extract_from_summary_output(gcs_url: str,
     summary = ""
     full_text = ""
     
+    # output could be multiple json files; loop through them and concat results
     for blob in blobs:
         if path in blob.name:
             content = blob.download_as_string()
@@ -65,13 +83,21 @@ def extract_from_summary_output(gcs_url: str,
         
     return json_uri, summary, full_text
 
-######################################################################
-# Extract the blob uri, list of entities, and full extracted text of the 
-# contract parser result from docAI workbench contract parser
-######################################################################
 def extract_from_contract_output(gcs_url: str, 
                                 credentials: Optional[Credentials] = None):
+    """
+    Extract the blob uri, list of entities, and full extracted text of the 
+    contract parser result from docAI workbench contract parser
 
+    Args: 
+        gcs_url: the url of the output json of a document parser
+        credentials: Optional. user to run as to get file from storage
+
+    Returns:
+        json_uri: URI of cloud storage directory of output
+        entities: list of key value pair of extracted entities
+        full_text: the full OCR text from the parser
+    """
     print(f'Extract docai summary parser output from {gcs_url}')
     
     if (credentials != None):
@@ -87,6 +113,7 @@ def extract_from_contract_output(gcs_url: str,
     entities = []
     full_text = ""
     
+    # output could be multiple json files; loop through them and concat results
     for blob in blobs:
         if path in blob.name:
             content = blob.download_as_string()
@@ -103,15 +130,24 @@ def extract_from_contract_output(gcs_url: str,
         
     return json_uri, entities, full_text
 
-######################################################################
-# Copy from one bucket to another
-######################################################################
 def copy_from_to(from_gcs_bucket: str, 
                  from_gcs_path: str, 
                  to_gcs_bucket: str, 
                  to_gcs_path: str,
                  credentials: Optional[Credentials] = None):
-    
+    """
+    Copy from one GCS bucket to another
+
+    Args: 
+        from_gcs_bucket: cloud storage bucket of the "from" file
+        from_gcs_path: path to the "from" file
+        to_gcs_bucket: cloud storage bucket of the destination
+        to_gcs_path: path of destination
+        credentials: Optional. user to run as to get file from storage
+
+    Returns:
+        None
+    """    
     print(f'Copy from {from_gcs_bucket}/{from_gcs_path} to {to_gcs_bucket}/{to_gcs_path}')
     
     if (credentials != None):

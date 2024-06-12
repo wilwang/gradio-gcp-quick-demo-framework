@@ -7,9 +7,6 @@ from google.oauth2.service_account import Credentials
 import io
 import json
 
-######################################################################
-# Function to run a docAI processor using BatchProcessRequest
-######################################################################
 def process_document(
     project_id: str,
     location: str,
@@ -21,9 +18,27 @@ def process_document(
     processor_version_id: Optional[str] = None,
     credentials: Optional[Credentials] = None
 ):
+    """
+    Send a batch process request to the document AI processor
+
+    Args:
+        project_id: project id where processor is created
+        location: location of the processor (us, global, etc)
+        processor_id: id of the parser
+        mime_type: file type that is being processed
+        gcs_input_uri: the cloud storage URI of the file to be processed
+        gcs_output_uri: the cloud storage URI of the folder where output gets sent
+        field_mask: Optional. list of fields that a request should return
+        processor_version_id: Optional. set to specify particular version of a model
+        credentials: Optional. credentials to run as
+
+    Returns:
+       BatchProcessMetadata 
+    """
     # You must set the `api_endpoint` if you use a location other than "us".
     opts = ClientOptions(api_endpoint=f"{location}-documentai.googleapis.com")
 
+    # if no credentials, will use the default application credentials
     if credentials != None:
         client = docai.DocumentProcessorServiceClient(client_options=opts, credentials=credentials)
     else:

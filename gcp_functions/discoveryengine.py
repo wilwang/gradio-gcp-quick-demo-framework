@@ -4,16 +4,23 @@ from google.cloud import discoveryengine_v1 as discoveryengine
 from .config import DiscoveryEngineConfig
 from urllib.parse import quote
 
-'''
-Search function against Vertex Search
+def search(project_id: str, 
+            engine_id: str, 
+            model_context_prompt: str, 
+            search_query: str):
+    '''
+    Search function against Vertex Search / Discovery Engine API
 
-'''
-def search(
-    project_id: str,
-    engine_id: str,
-    model_context_prompt: str,
-    search_query: str
-) -> List[discoveryengine.SearchResponse]:
+    Args:
+        project_id: id for the project that hosts the search engine
+        engine_id: id of the vertex agent app
+        model_context_prompt: customize preamble prompt for the model
+        search_query: prompt/question for the search engine
+
+    Returns:
+        summary: summary output that combines the summary text and search results
+        response: raw response of the search engine
+    '''
     location = DiscoveryEngineConfig.location()
 
     client_options = (
@@ -75,6 +82,7 @@ def search(
     response = client.search(request)
     summary = response.summary.summary_text
 
+    # only returning 2 search results for purposes of demo
     max_results = 2
     count = 0
     for result in response.results:

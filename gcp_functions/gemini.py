@@ -3,6 +3,14 @@ from vertexai.preview.generative_models import GenerativeModel, GenerationConfig
 from .config import GeminiConfig
 
 def gemini_docqa_response(message, history, ground_text):
+    """
+    Function to handle the document Q&A interaction
+
+    Args:
+        message: the question to send to the LLM
+        history: full context of chat history (Not currently used)
+        ground_text: text to use as context for the prompt
+    """
     model = GeminiConfig.model()
     temp = GeminiConfig.temperature()
     p = GeminiConfig.top_p()
