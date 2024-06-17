@@ -1,6 +1,6 @@
 .ipynb_checkpoints
-gcp_functions/.ipynb_checkpoints
-gcp_functions/__pycache__
+*/.ipynb_checkpoints
+*/__pycache__
 
 venv
 creds

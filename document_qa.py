@@ -2,11 +2,16 @@ import gradio as gr
 import pandas
 
 import gcp_functions.storage as StorageHelper
+import gcp_functions.stateBag as sb
 from gcp_functions.docai import process_document
 from gcp_functions.config import SummaryParserConfig, ContractParserConfig, ProjectConfig, DiscoveryEngineConfig
 from gcp_functions.gemini import gemini_docqa_response
 from gcp_functions.discoveryengine import search
-from typing import Callable
+
+from components.contract_parser import contract_component
+from components.qa_chatbot import qa_component
+from components.search import search_component
+from components.summarizer import summary_component
 
 from google.oauth2.service_account import Credentials
 import json
@@ -26,7 +31,7 @@ def handle_summary_upload(file_url: str, state: gr.State):
 
     Args:
         file_url (str): local file location to be uploaded
-        state (gradio.State): session state object
+        state (gradio.State): session state object of type gcp_functions.stateBag
 
     Returns: 
         gcs_uri (str): cloud storage bucket URI of the input file
@@ -63,44 +68,11 @@ def handle_summary_upload(file_url: str, state: gr.State):
 
     # set the current full ocr text in session state; we use this for 
     # QnA prompting to provide context for the prompts
-    state["ocr_text"] = text
+    state.ocr_text = text
     
     # returns the result location, the summary portion, and the session state
     return gcs_input_uri, summary, state
     
-def summary_component(handle_func: Callable, state: gr.State):
-    """
-    Document Summarizer UI component
-
-    Args:
-        handle_func (Callable): function to handle the file upload event
-        state (gradio.State): session state object
-
-    Returns:
-        Nothing
-    """
-    # Layout of component
-    with gr.Tab("Summarize") as tab:
-        with gr.Row():
-            file = gr.Textbox(lines=1, label="Upload File")
-        with gr.Row():
-            upload_btn = gr.UploadButton(
-                "Click to upload",
-                file_types=[".pdf"],
-                file_count="single")
-        with gr.Row():
-            summary = gr.Textbox(lines=20, label="Summary")
-
-    # set up the event handler for "upload"
-    upload_btn.upload(handle_func, [upload_btn, state], [file, summary, state])
-
-    # local function to handle when the summary tab is selected
-    def set_active_tab(state: gr.State):
-        state["active_tab"] = "summary"
-        return state
-
-    # set up event handler for tab "select"
-    tab.select(set_active_tab, [state], [state])
 
 def handle_contract_upload(file_url: str, state: gr.State):
     """
@@ -115,7 +87,7 @@ def handle_contract_upload(file_url: str, state: gr.State):
 
     Args:
         file_url (str): local file location to be uploaded
-        state (gradio.State): session state object
+        state (gradio.State): session state object of type gcp_functions.stateBag
 
     Returns: 
         gcs_uri (str): cloud storage bucket URI of the input file
@@ -163,126 +135,48 @@ def handle_contract_upload(file_url: str, state: gr.State):
     df_entities = pandas.DataFrame(entities)
 
     # store the full ocr text from the document in session state
-    state["ocr_text"] = text
+    state.ocr_text = text
     
     # returns the result location, the extracted entities, and updated session state
-    return gcs_input_uri, df_entities, state
+    return gcs_input_uri, df_entities, state     
+    
 
-def contract_component(handle_func: Callable, state: gr.State):
+def handle_qa_submit(message, history, state):
     """
-    Document Contract Parser UI component
+    Handler function for handling a response to a user input in the chatbot
 
     Args:
-        handle_func (Callable): function to handle the file upload event
-        state (gradio.State): session state object
+        message (str): the submitted message by the user
+        history (str): retained history of the entire chat conversation. Not currently used
+        state (gradio.State): session state object of type gcp_function.stateBag
 
-    Returns:
-        Nothing
+    Returns: 
+        message in user input box
+        history of entire chat conversation
+    
     """
-    # UI Layout
-    with gr.Tab("Contracts") as tab:
-        with gr.Row():
-            file = gr.Textbox(lines=1, label="Upload Contract")
-        with gr.Row():
-            upload_btn = gr.UploadButton(
-                "Click to upload",
-                file_types=[".pdf"],
-                file_count="single")
-        with gr.Row():
-            entities = gr.DataFrame(headers=['type', 'mentionText'], 
-                                    column_widths=['200px'],
-                                    label="Entities", 
-                                    wrap=True)
+    resp = ""
+    
+    # if active tab is on "Enterprise KB", use search function
+    if (state.active_tab == "kb"):
+        project_id = state.project_id
+        engine_id = state.engine_id
 
-    # set up the event handler for "upload"
-    upload_btn.upload(handle_func,[upload_btn, state],[file, entities, state])
+        # set the preamble context for the search engine
+        context = """You are a search engine answering questions for a user. 
+        Return pertinent snippets from the source documents where you answer from."""
 
-    # local function to handle when the summary tab is selected
-    def set_active_tab(state: gr.State):
-        state["active_tab"] = "contract"
-        return state
-
-    # set up event handler for tab "select"
-    tab.select(set_active_tab, [state], [state])
-
-def search_component(state: gr.State):
-    """
-    Vertex Search UI component
-
-    Args:
-        state (gradio.State): session state object
-
-    Returns:
-        Nothing
-    """
-    # UI Layout
-    with gr.Tab("Enterprise KB") as tab:
-        with gr.Row():
-            engine_id = DiscoveryEngineConfig.engine_id()
-            search_engine = gr.Textbox(lines=1, label="Search Engine Id", value=engine_id)
-
-    # local function to handle search engine id change to update session state
-    def handle_search_engine_change(engine_id: str, state: gr.State):
-        print (engine_id)
-        state["engine_id"] = engine_id
-        return state
-
-    # set up event handler for search engine textbox change
-    search_engine.change(handle_search_engine_change, [search_engine, state], [state])
-
-    # local function to handle tab "select" event to update session state and engine id
-    def set_active_tab(engine_id: str, state: gr.State):
-        state["active_tab"] = "kb"
-        state["engine_id"] = engine_id
-        print(engine_id)
-        return state
-
-    # set up event handler for tab select
-    tab.select(set_active_tab, [search_engine, state], [state])            
-
-def qa_component(state: gr.State):
-    """
-    Q&A chat UI component
-
-    Args:
-        state (gradio.State): session state object
-
-    Returns:
-        Nothing
-    """
-    # UI Layout
-    with gr.Row():
-        chatbot = gr.Chatbot(height=700)
-    with gr.Row():
-        msg = gr.Textbox()
-
-    # local function to handle interaction in the chatbot
-    def respond(message, history, state):
-        resp = ""
-        active_tab = state["active_tab"]
+        resp, raw = search(project_id, engine_id, context, message)
+    # otherwise use the gemini docqa response function
+    else:
+        ocr_text = state.ocr_text
+        resp = gemini_docqa_response(message, history, ocr_text)
         
-        # if active tab is on "Enterprise KB", use search function
-        if (active_tab == "kb"):
-            project_id = ProjectConfig.get_project_id()
-            engine_id = state["engine_id"]
+    # capture chat history
+    history.append((message, resp))
 
-            # set the preamble context for the search engine
-            context = """You are a search engine answering questions for a user. 
-            Return pertinent snippets from the source documents where you answer from."""
+    return "", history
 
-            resp, raw = search(project_id, engine_id, context, message)
-        # otherwise use the gemini docqa response function
-        else:
-            ocr_text = state["ocr_text"]
-            resp = gemini_docqa_response(message, history, ocr_text)
-            
-        # capture chat history
-        history.append((message, resp))
-
-        return "", history
-
-    # set up the event handler for submit on the chat input textbox
-    msg.submit(respond, [msg, chatbot, state], [msg, chatbot])    
 
 def main():
     """
@@ -292,12 +186,13 @@ def main():
     """
     # UI Layout
     with gr.Blocks() as demo:
+        bag = sb.StateBag(active_tab="summary", 
+                        ocr_text="none", 
+                        engine_id=DiscoveryEngineConfig.engine_id(), 
+                        project_id=ProjectConfig.get_project_id())
+
         # create the session state to beused within this Block()
-        state = gr.State({
-            "active_tab": "summary",
-            "ocr_text": "none",
-            "engine_id": "none"
-            })
+        state = gr.State(bag)
 
         # logo on top of the page
         with gr.Row():
@@ -310,18 +205,18 @@ def main():
                 # the contract UI
                 contract_component(handle_contract_upload, state)
                 # the KB UI
-                search_component(state)
+                search_component(bag.engine_id, state)
             with gr.Column():
                 # the QA chatbot
-                qa_component(state)
+                qa_component(handle_qa_submit, state)
         
         # NOTE: Uncomment if you need to keep an eye on the session state
         '''
         def handle(state: gr.State):
             return f"""
-            active_tab: {state["active_tab"]}
-            ocr_text: {state["ocr_text"]}
-            engine_id: {state["engine_id"]}
+            active_tab: {state.active_tab}
+            ocr_text: {state.ocr_text}
+            engine_id: {state.engine_id}
             """
         msg = gr.Textbox()
         btn = gr.Button("Click me!")
