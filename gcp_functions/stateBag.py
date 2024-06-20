@@ -1,10 +1,9 @@
-
 class StateBag:
     def __init__(self, 
-                active_tab: str, 
-                ocr_text: str, 
-                engine_id: str, 
-                project_id: str):
+                active_tab: str | None = "", 
+                ocr_text: str | None = "", 
+                engine_id: str | None = "", 
+                project_id: str | None = ""):
         self._active_tab = active_tab
         self._ocr_text = ocr_text
         self._engine_id = engine_id

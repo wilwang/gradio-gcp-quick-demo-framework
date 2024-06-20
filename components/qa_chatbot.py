@@ -6,6 +6,9 @@ def qa_component(handle_func: Callable, state: gr.State):
     Q&A chat UI component
 
     Args:
+        handle_func (Callable): function to handle the textbox submit event
+            - must take 3 params (message: str, history: str, state: gradio.State)
+            - must return 2 items ("": str, history: str)
         state (gradio.State): session state object
 
     Returns:

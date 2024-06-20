@@ -7,6 +7,8 @@ def contract_component(handle_func: Callable, state: gr.State):
 
     Args:
         handle_func (Callable): function to handle the file upload event
+            - must take 2 params (file_url: str, state: gradio.State)
+            - must return 3 items (gcs_input_uri: str, df_entities: Dataframe, state: gradio.State)
         state (gradio.State): session state object of type gcp_functions.StateBag
 
     Returns:

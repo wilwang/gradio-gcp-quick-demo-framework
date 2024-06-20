@@ -141,7 +141,7 @@ def handle_contract_upload(file_url: str, state: gr.State):
     return gcs_input_uri, df_entities, state     
     
 
-def handle_qa_submit(message, history, state):
+def handle_qa_submit(message: str, history: str, state: gr.State):
     """
     Handler function for handling a response to a user input in the chatbot
 
@@ -191,7 +191,7 @@ def main():
                         engine_id=DiscoveryEngineConfig.engine_id(), 
                         project_id=ProjectConfig.get_project_id())
 
-        # create the session state to beused within this Block()
+        # create the session state to be used within this Block()
         state = gr.State(bag)
 
         # logo on top of the page
