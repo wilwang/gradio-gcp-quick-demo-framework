@@ -1,5 +1,5 @@
-import vertexai.preview.generative_models as generative_models
-from vertexai.preview.generative_models import GenerativeModel, GenerationConfig
+import vertexai.generative_models as generative_models
+from vertexai.generative_models import GenerativeModel, GenerationConfig, Part
 from .config import GeminiConfig
 
 def gemini_docqa_response(message, history, ground_text):
@@ -11,12 +11,12 @@ def gemini_docqa_response(message, history, ground_text):
         history: full context of chat history (Not currently used)
         ground_text: text to use as context for the prompt
     """
-    model = GeminiConfig.model()
+    model_name = GeminiConfig.model()
     temp = GeminiConfig.temperature()
     p = GeminiConfig.top_p()
     k = GeminiConfig.top_k()
 
-    gemini_pro_model = GenerativeModel(model)
+    model = GenerativeModel(model_name)
     config = GenerationConfig(
         # Only one candidate for now.
         candidate_count=1,
@@ -33,6 +33,38 @@ def gemini_docqa_response(message, history, ground_text):
     
     Question: {message}
     """
-    resp = gemini_pro_model.generate_content(context, generation_config=config)
+    resp = model.generate_content(context, generation_config=config)
 
     return resp.text
+
+
+
+def gemini_audio_response(audio_uri, prompt):
+    """
+    Function to handle the response from a Gradio Audio component that returns
+    type of "filepath"
+
+    Args: 
+        audio_uri: the gcs uri of the audio file
+        prompt: the prompt to pass to the generative model
+    """
+    model_name = GeminiConfig.model()
+    temp = GeminiConfig.temperature()
+    p = GeminiConfig.top_p()
+    k = GeminiConfig.top_k()
+
+    model = GenerativeModel(model_name)
+    config = GenerationConfig(
+        # Only one candidate for now.
+        candidate_count=1,
+        temperature=temp,
+        top_p=p,
+        top_k=k)
+
+    audio_file = Part.from_uri(audio_uri, mime_type="audio/wav")
+    contents = [audio_file, prompt]
+
+    response = model.generate_content(contents)
+
+    return response.text
+

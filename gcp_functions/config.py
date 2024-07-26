@@ -125,7 +125,7 @@ class GeminiConfig:
     # attempt to load local .env
     load_dotenv()
 
-    # set the model to use for the LLM (gemini-1.5-flash-001, gemini-1.5-pro-preview-0409, etc)
+    # set the model to use for the LLM (gemini-1.5-flash-001, gemini-1.5-pro-001, etc)
     def model():
         value = os.environ.get("model", "gemini-1.5-flash-001") 
         return value
@@ -160,4 +160,12 @@ class DiscoveryEngineConfig:
     # location of the search engine (us, global, etc)
     def location():
         value = os.environ.get("DISCOVERY_ENGINE_LOCATION", "")
+        return value
+
+
+class AudioConfig:
+    load_dotenv()
+
+    def upload_bucket():
+        value = os.environ.get("AUDIO_UPLOAD_BUCKET", "")
         return value
